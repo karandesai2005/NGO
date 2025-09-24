@@ -1,0 +1,59 @@
+Here's a prompt to guide the development of a simplified MVP for the NGO Volunteer & Operations Management App using React Native, without database integration. Authentication will be handled locally by storing credentials in a JSON file, keeping it lightweight and suitable for initial prototyping.
+
+---
+
+### MVP Development Prompt for NGO Volunteer & Operations Management App (No Database)
+
+Build a React Native-based MVP for an NGO app targeting volunteers, admins, and parents, using Expo for cross-platform support (iOS and Android). Avoid database connections and implement authentication by storing credentials in a local JSON file. The UI should reflect the pastel gradient theme (light purple to peach), rounded cards, and a "Akshar" logo placeholder from the provided screenshots. Focus on the following core features:
+
+1. **User Authentication**
+   - Implement a simple email/password login and signup system using a local JSON file (e.g., `credentials.json`) to store user data.
+   - Include role-based access (Volunteer, Admin, Parent) selected during signup, stored in the JSON file.
+   - Design a login screen with a "Welcome Back!" header, email/password fields, and a black "Login" button, styled as per the screenshot.
+   - Use a hardcoded initial dataset in the JSON file (e.g., a few mock users) and allow new users to be appended.
+
+2. **Volunteer Communication**
+   - Create a basic chat interface using `react-native-gifted-chat`, with messages stored locally in the app's state (not synced).
+   - Style chat bubbles with pastel pink for sent messages and light purple for received messages, matching the "Nagesh Sir" conversation layout.
+   - Limit to a single group chat for now, with mock data loaded initially.
+
+3. **Class Scheduling**
+   - Develop a calendar view using `react-native-calendars`, displaying events with a clean grid layout as shown.
+   - Enable admins to add events (date, time, title, teacher name) via a form, stored in the app's local state (e.g., an array).
+   - Display upcoming shifts in a card list (e.g., "Archisha Yadav, English Teacher, 12:00 pm") using mock data.
+
+4. **Parent Notifications**
+   - Add an admin-only screen to send bulk text messages to parents, using a mock console.log output (no API integration yet).
+   - Store parent contact info in the app's local state with consent flags, initialized with mock data.
+
+5. **Admin Dashboard**
+   - Build a dashboard for admins with a list of upcoming shifts and a pie chart using `react-native-chart-kit` showing volunteer hours (e.g., 70 hrs volunteered, 50 hrs remaining), using static mock data.
+   - Include a "Team Updates" section with a "View" button, styled as a pastel card.
+
+6. **General Features**
+   - Use Expo Offline for local data persistence, saving the JSON file and state to the device.
+   - Add mock push notifications using Expo Notifications (test with static alerts).
+   - Apply a consistent UI theme: pastel gradients, rounded corners, and a logo placeholder at the top.
+
+#### Technical Guidelines
+- Use Expo Go for initial development and testing.
+- Structure the project with modular screens (Login, Chat, Schedule, Admin) and reusable components (e.g., EventCard, ChatBubble).
+- Use `AsyncStorage` to read/write the `credentials.json` file and manage local state.
+- Use `styled-components` or inline styles to replicate the gradient background and pastel color scheme.
+- Start with a single-stack navigation using `@react-navigation/native`.
+
+#### Deliverables
+- A working React Native app with the above features, testable via Expo Go.
+- A `credentials.json` file with initial mock user data and instructions in a README for adding new users.
+- Mock data for chat, schedules, and dashboard elements, stored locally.
+
+#### Timeline & Scope
+- Target 1-2 weeks for MVP completion by a small team.
+- Prioritize core flows: login → schedule view → chat → admin dashboard.
+- Test on at least one device/emulator per platform.
+
+Start by setting up the project with `expo init`, installing dependencies (e.g., `@react-navigation/native`, `react-native-gifted-chat`, `react-native-calendars`, `react-native-chart-kit`), and creating a `credentials.json` file. Begin with the login screen, implementing local authentication, and iterate through each feature.
+
+---
+
+This approach keeps the MVP simple and database-free, ideal for early prototyping. Let me know if you'd like code snippets or further details!
