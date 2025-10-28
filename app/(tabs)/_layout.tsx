@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageCircle, Calendar, Chrome as Home, Users, Bell } from 'lucide-react-native';
+import { MessageCircle, Calendar, Home, Users, Bell } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { user } = useAuth();

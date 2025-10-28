@@ -1,16 +1,15 @@
+// app/(auth)/signup.tsx
 import React, { useState } from 'react';
-// 1. Imports updated
-import { View, Text, TextInput, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// 2. Import KeyboardAwareScrollView
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { GradientBackground } from '@/components/GradientBackground';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUsers, addUser } from '@/utils/storage';
+import { supabase } from '@/utils/supabase';
 import { User } from '@/types';
 
 export default function SignupScreen() {
@@ -35,29 +34,38 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
+
     setIsLoading(true);
     try {
-      const users = await getUsers();
-      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (existingUser) {
-        Alert.alert('Error', 'User with this email already exists');
-        setIsLoading(false); // Make sure to stop loading on validation error
-        return;
-      }
-      const newUser: User = {
-        id: Date.now().toString(),
-        email: email.toLowerCase(),
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
+        options: {
+          data: { full_name: name }
+        }
+      });
+
+      if (error) throw error;
+      if (!data.user) throw new Error('No user created');
+
+      const roleLower = role.toLowerCase() as 'admin' | 'volunteer' | 'parent';
+      await supabase
+        .from('profiles')
+        .update({ role: roleLower })
+        .eq('id', data.user.id);
+
+      const appUser: User = {
+        id: data.user.id,
+        email: email.toLowerCase(),
         name,
         role,
         createdAt: new Date().toISOString(),
       };
-      await addUser(newUser);
-      await login(newUser);
+
+      await login(appUser);
       router.replace('/(tabs)');
-    } catch (error) {
-      Alert.alert('Error', 'Signup failed. Please try again.');
-      console.error('Signup error:', error);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Signup failed');
     } finally {
       setIsLoading(false);
     }
@@ -66,17 +74,14 @@ export default function SignupScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.container}>
-        {/* 3. Replaced the nested components with KeyboardAwareScrollView */}
         <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
-          resetScrollToCoords={{ x: 0, y: 0 }}
-          scrollEnabled={true}
         >
           <Logo />
           
           <Card style={styles.signupCard}>
-            <Text style={styles.welcomeText}>Join Akshar</Text>
+            <Text style={styles.welcomeText}>Join Akshar Paaul NGO</Text>
             <Text style={styles.subtitleText}>Create your account</Text>
             
             <View style={styles.inputContainer}>
@@ -126,16 +131,25 @@ export default function SignupScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.roleLabel}>Role</Text>
+              <Text style={styles.roleLabel}>Select Your Role</Text>
               <View style={styles.roleSelector}>
                 {(['Volunteer', 'Admin', 'Parent'] as const).map((roleOption) => (
-                  <Button
+                  <TouchableOpacity
                     key={roleOption}
-                    title={roleOption}
+                    style={[
+                      styles.roleButton,
+                      role === roleOption && styles.roleButtonActive
+                    ]}
                     onPress={() => setRole(roleOption)}
-                    variant={role === roleOption ? 'primary' : 'secondary'}
-                    style={styles.roleButton}
-                  />
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.roleButtonText,
+                      role === roleOption && styles.roleButtonTextActive
+                    ]}>
+                      {roleOption}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -161,74 +175,45 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  signupCard: {
-    marginHorizontal: 8,
-  },
-  welcomeText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2D3748',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitleText: {
-    fontSize: 16,
-    color: '#718096',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#F7FAFC',
-  },
-  roleLabel: {
-    fontSize: 16,
-    color: '#2D3748',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  roleSelector: {
-    flexDirection: 'row',
+  container: { flex: 1 },
+  scrollContainer: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  signupCard: { marginHorizontal: 8 },
+  welcomeText: { fontSize: 28, fontWeight: 'bold', color: '#2D3748', textAlign: 'center', marginBottom: 8 },
+  subtitleText: { fontSize: 16, color: '#718096', textAlign: 'center', marginBottom: 32 },
+  inputContainer: { marginBottom: 16 },
+  input: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 16, fontSize: 16, backgroundColor: '#F7FAFC' },
+  roleLabel: { fontSize: 16, color: '#2D3748', marginBottom: 12, fontWeight: '600' },
+  roleSelector: { 
+    flexDirection: 'row', 
     justifyContent: 'space-between',
+    gap: 8,
   },
-  roleButton: {
+  roleButton: { 
     flex: 1,
-    marginHorizontal: 4,
     paddingVertical: 12,
-  },
-  signupButton: {
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  loginContainer: {
-    flexDirection: 'row',
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  loginText: {
-    color: '#718096',
-    fontSize: 16,
+  roleButtonActive: {
+    borderColor: '#667EEA',
+    backgroundColor: '#667EEA',
   },
-  loginLink: {
-    marginLeft: 4,
-  },
-  loginLinkText: {
-    color: '#667EEA',
-    fontSize: 16,
+  roleButtonText: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#718096',
   },
+  roleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  signupButton: { marginTop: 8, marginBottom: 24 },
+  loginContainer: { flexDirection: 'row', justifyContent: 'center' },
+  loginText: { color: '#718096', fontSize: 16 },
+  loginLink: { marginLeft: 4 },
+  loginLinkText: { color: '#667EEA', fontSize: 16, fontWeight: '600' },
 });

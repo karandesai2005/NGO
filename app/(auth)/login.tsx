@@ -1,16 +1,16 @@
+// app/(auth)/login.tsx
 import React, { useState } from 'react';
-// 1. Imports updated: KeyboardAvoidingView and ScrollView are removed
-import { View, Text, TextInput, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// 2. Import the new component
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { GradientBackground } from '@/components/GradientBackground';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUsers } from '@/utils/storage';
+import { supabase } from '@/utils/supabase';
+import { User } from '@/types';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,18 +26,37 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      const users = await getUsers();
-      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      
-      if (user) {
-        await login(user);
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Error', 'Invalid email or password');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Login failed. Please try again.');
-      console.error('Login error:', error);
+      // 1. Supabase Auth
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // 2. Fetch profile (role + name)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // 3. Build app user
+      const appUser: User = {
+        id: data.user.id,
+        email: data.user.email!,
+        name: profile.full_name || data.user.email!,
+        role: capitalize(profile.role) as 'Volunteer' | 'Admin' | 'Parent',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 4. Login to context
+      await login(appUser);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -46,19 +65,16 @@ export default function LoginScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.container}>
-        {/* 3. Replaced KeyboardAvoidingView and ScrollView with KeyboardAwareScrollView */}
         <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
-          resetScrollToCoords={{ x: 0, y: 0 }}
-          scrollEnabled={true}
         >
           <Logo />
-          
+
           <Card style={styles.loginCard}>
             <Text style={styles.welcomeText}>Welcome Back!</Text>
             <Text style={styles.subtitleText}>Sign in to your account</Text>
-            
+
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -71,7 +87,7 @@ export default function LoginScreen() {
                 autoCorrect={false}
               />
             </View>
-            
+
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -82,14 +98,14 @@ export default function LoginScreen() {
                 secureTextEntry
               />
             </View>
-            
+
             <Button
               title={isLoading ? "Signing In..." : "Login"}
               onPress={handleLogin}
               disabled={isLoading}
               style={styles.loginButton}
             />
-            
+
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
               <Link href="/(auth)/signup" style={styles.signupLink}>
@@ -98,11 +114,13 @@ export default function LoginScreen() {
             </View>
           </Card>
 
+          {/* DEMO CREDENTIALS (Remove in production) */}
           <View style={styles.demoCredentials}>
-            <Text style={styles.demoTitle}>Demo Credentials:</Text>
-            <Text style={styles.demoText}>Admin: admin@akshar.org / admin123</Text>
-            <Text style={styles.demoText}>Volunteer: volunteer@akshar.org / volunteer123</Text>
-            <Text style={styles.demoText}>Parent: parent@akshar.org / parent123</Text>
+            <Text style={styles.demoTitle}>Demo Users (Create via Signup):</Text>
+            <Text style={styles.demoText}>admin@akshar.org → Role: Admin</Text>
+            <Text style={styles.demoText}>volunteer@akshar.org → Role: Volunteer</Text>
+            <Text style={styles.demoText}>parent@akshar.org → Role: Parent</Text>
+            <Text style={styles.demoText}>Password: 123456</Text>
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>
@@ -187,3 +205,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// Helper: 'volunteer' → 'Volunteer'
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

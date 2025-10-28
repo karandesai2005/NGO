@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 export const Logo: React.FC = () => {
   return (
     <View style={styles.logoContainer}>
-      <Text style={styles.logoText}>Akshar</Text>
+      <Text style={styles.logoText}>Akshar Paaul</Text>
       <Text style={styles.logoSubtext}>NGO Management</Text>
     </View>
   );

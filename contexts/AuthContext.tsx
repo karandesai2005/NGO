@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// contexts/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/utils/supabase';
 import { User } from '@/types';
-import { getCurrentUser, setCurrentUser as storeCurrentUser, initializeDefaultData } from '@/utils/storage';
+
+type Role = 'Volunteer' | 'Admin' | 'Parent';
 
 interface AuthContextType {
   user: User | null;
-  login: (user: User) => Promise<void>;
+  login: (user: User) => void;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -12,55 +15,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };
 
-interface AuthProviderProps {
-  children: React.ReactNode;
+interface Props {
+  children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<Props> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await initializeDefaultData();
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) fetchProfile(session.user.id);
+      else setIsLoading(false);
+    });
 
-    initAuth();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) fetchProfile(session.user.id);
+        else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (userData: User) => {
-    try {
-      await storeCurrentUser(userData);
-      setUser(userData);
-    } catch (error) {
-      console.error('Error logging in:', error);
-      throw error;
+  const fetchProfile = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', uid)
+      .single();
+
+    if (error) {
+      console.error('profile fetch error →', error);
+      setIsLoading(false);
+      return;
     }
+
+    const appUser: User = {
+      id: uid,
+      email: data.full_name
+        ? data.full_name.split(' ')[0].toLowerCase() + '@akshar.org'
+        : '',
+      name: data.full_name ?? '',
+      role: capitalize(data.role) as Role,
+      createdAt: new Date().toISOString(), // ← optional, safe to add
+    };
+
+    setUser(appUser);
+    setIsLoading(false);
   };
 
+  const login = (u: User) => setUser(u);
   const logout = async () => {
-    try {
-      await storeCurrentUser(null);
-      setUser(null);
-    } catch (error) {
-      console.error('Error logging out:', error);
-      throw error;
-    }
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
   return (
@@ -69,3 +86,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+// Helper: 'volunteer' → 'Volunteer'
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
