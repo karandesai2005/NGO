@@ -127,7 +127,7 @@ export default function NotificationsScreen() {
   }
 
   const consentedParents = parents.filter(parent => parent.hasConsent);
-  const totalParents = parents.length;
+  const totalParents = 50;
 
   return (
     <GradientBackground>

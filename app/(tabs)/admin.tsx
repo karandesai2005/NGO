@@ -18,11 +18,14 @@ export default function AdminScreen() {
   const [upcomingEvents, setUpcomingEvents] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // STATIC REALISTIC NUMBERS
-  const VOLUNTEERS = 42;
-  const PARENTS = 128;
-  const ADMINS = 3;
-  const PROGRESS_PERCENT = 68;
+  // DUMMY DATA (REALISTIC)
+  const VOLUNTEERS = 20;
+  const PARENTS = 50;
+  const ADMINS = 4;
+  const TOTAL_USERS_DUMMY = 74; // ← YOUR REQUEST
+  const TOTAL_TARGET_HOURS = 120;
+  const VOLUNTEERED_HOURS = 70;
+  const PROGRESS_PERCENT = Math.round((VOLUNTEERED_HOURS / TOTAL_TARGET_HOURS) * 100);
 
   useEffect(() => {
     if (user?.role !== 'Admin') {
@@ -48,16 +51,17 @@ export default function AdminScreen() {
       const { data: signups } = await supabase
         .from('event_signups')
         .select('id');
-      const volunteered = (signups?.length || 0) * 2;
-      setVolunteerHours({ volunteered, total: 1000 });
+      const realVolunteered = (signups?.length || 0) * 2;
+      setVolunteerHours({ volunteered: realVolunteered, total: TOTAL_TARGET_HOURS });
 
-      // 3. Real total users
-      const { count: userCount } = await supabase
+      // 3. Real total users (but we override with dummy)
+      const { count: realUserCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
-      setTotalUsers(userCount || 0);
+      setTotalUsers(TOTAL_USERS_DUMMY); // ← DUMMY 74
     } catch (error) {
       console.error('Error loading admin data:', error);
+      setTotalUsers(TOTAL_USERS_DUMMY); // fallback
     }
   };
 
@@ -92,19 +96,26 @@ export default function AdminScreen() {
   const pieData = [
     {
       name: 'Volunteered',
-      population: volunteerHours.volunteered,
+      population: VOLUNTEERED_HOURS,
       color: '#667EEA',
       legendFontColor: '#2D3748',
       legendFontSize: 14,
     },
     {
       name: 'Remaining',
-      population: 1000 - volunteerHours.volunteered,
-      color: '#FFB6C1',
+      population: TOTAL_TARGET_HOURS - VOLUNTEERED_HOURS,
+      color: '#E2E8F0',
       legendFontColor: '#2D3748',
       legendFontSize: 14,
     },
   ];
+
+  const chartConfig = {
+    backgroundGradientFrom: '#ffffff',
+    backgroundGradientTo: '#ffffff',
+    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+  };
 
   return (
     <GradientBackground>
@@ -112,7 +123,7 @@ export default function AdminScreen() {
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <Text style={styles.title}>Admin Dashboard</Text>
 
-          {/* REAL + STATIC STATS */}
+          {/* REAL + DUMMY STATS */}
           <View style={styles.statsGrid}>
             <Card style={styles.statCard}>
               <View style={styles.statHeader}>
@@ -149,28 +160,30 @@ export default function AdminScreen() {
             </Card>
           </View>
 
-          {/* REAL HOURS + STATIC PROGRESS */}
+          {/* PIE CHART */}
           <Card>
-            <Text style={styles.cardTitle}>Volunteer Hours</Text>
+            <Text style={styles.cardTitle}>Volunteer Hours Progress</Text>
             <View style={styles.chartContainer}>
               <PieChart
                 data={pieData}
                 width={screenWidth - 80}
                 height={220}
-                chartConfig={{ color: () => '#667EEA' }}
+                chartConfig={chartConfig}
                 accessor="population"
                 backgroundColor="transparent"
                 paddingLeft="15"
                 absolute
+                hasLegend={true}
+                center={[0, 0]}
               />
             </View>
             <View style={styles.hoursStats}>
               <View style={styles.hoursStat}>
-                <Text style={styles.hoursNumber}>{volunteerHours.volunteered}</Text>
+                <Text style={styles.hoursNumber}>{VOLUNTEERED_HOURS}</Text>
                 <Text style={styles.hoursLabel}>Volunteered</Text>
               </View>
               <View style={styles.hoursStat}>
-                <Text style={styles.hoursNumber}>{1000 - volunteerHours.volunteered}</Text>
+                <Text style={styles.hoursNumber}>{TOTAL_TARGET_HOURS - VOLUNTEERED_HOURS}</Text>
                 <Text style={styles.hoursLabel}>Remaining</Text>
               </View>
               <View style={styles.hoursStat}>
@@ -180,7 +193,7 @@ export default function AdminScreen() {
             </View>
           </Card>
 
-          {/* STATIC ROLE BREAKDOWN */}
+          {/* ROLE BREAKDOWN */}
           <Card>
             <Text style={styles.cardTitle}>User Roles</Text>
             <View style={styles.userRoles}>

@@ -14,12 +14,12 @@ import { Calendar, Clock, User, LogOut } from 'lucide-react-native';
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
-  const [volunteerHours, setVolunteerHours] = useState({ volunteered: 0, total: 1000 });
+  const [volunteerHours, setVolunteerHours] = useState({ volunteered: 70, total: 120 });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // STATIC REALISTIC NUMBERS
-  const TOTAL_VOLUNTEERS = 42;
-  const TOTAL_PARENTS = 128;
+  const TOTAL_VOLUNTEERS = 20;
+  const TOTAL_PARENTS = 50;
   const PROGRESS_PERCENT = 68; // 68% of 1000 hrs
 
   useEffect(() => {
@@ -107,15 +107,15 @@ export default function HomeScreen() {
               <Text style={styles.cardTitle}>Volunteer Hours Overview</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{volunteerHours.volunteered}</Text>
+                  <Text style={styles.statNumber}>{70 - volunteerHours.volunteered}</Text>
                   <Text style={styles.statLabel}>Volunteered</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{1000 - volunteerHours.volunteered}</Text>
+                  <Text style={styles.statNumber}>{50 - volunteerHours.volunteered}</Text>
                   <Text style={styles.statLabel}>Remaining</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{1000}</Text>
+                  <Text style={styles.statNumber}>{120}</Text>
                   <Text style={styles.statLabel}>Total Target</Text>
                 </View>
               </View>

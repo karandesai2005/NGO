@@ -6,12 +6,11 @@ import {
   StyleSheet,
   Alert,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Platform,
 } from 'react-native';
-import { Chat, MessageType, defaultTheme, User } from '@flyerhq/react-native-chat-ui';
+import { Chat, MessageType, defaultTheme } from '@flyerhq/react-native-chat-ui';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,7 +81,7 @@ export default function ChatScreen() {
     }
 
     const uiMessages = data.map(toUIMessage);
-    setMessages(uiMessages); // ← FIXED
+    setMessages(uiMessages);
   };
 
   const handleSendPress = async (message: MessageType.PartialText) => {
@@ -125,24 +124,23 @@ export default function ChatScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
-      >
+      <View style={styles.container}>
         {/* GRADIENT HEADER */}
         <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.header}>
           <MessageCircle size={28} color="#FFF" />
           <Text style={styles.headerTitle}>Community Chat</Text>
         </LinearGradient>
 
+        {/* CHAT TAKES FULL SPACE + HANDLES KEYBOARD */}
         <Chat
           messages={messages}
           onSendPress={handleSendPress}
           user={chatUser}
           theme={customTheme}
-          showUserNames={false}  // ← TURNED OFF
+          showUserNames={false}
           showUserAvatars={false}
+          contentContainerStyle={styles.chatContent} // ← KEEPS INPUT AT BOTTOM
+          style={{ flex: 1 }} // ← FULL HEIGHT
           renderUserName={(message: MessageType.Any) => {
             if (message.author.id === chatUser.id) return null;
             const role = (message as any).metadata?.role || 'User';
@@ -187,7 +185,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           )}
         />
-      </KeyboardAvoidingView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -242,6 +240,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
     marginLeft: 12,
+  },
+  chatContent: {
+    flexGrow: 1,
+    paddingBottom: 20, // ← SPACE FOR INPUT
   },
   messageWrapper: {
     marginVertical: 6,
