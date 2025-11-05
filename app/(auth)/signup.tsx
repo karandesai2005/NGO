@@ -1,6 +1,6 @@
 // app/(auth)/signup.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, Switch } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -17,13 +17,23 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'Volunteer' | 'Admin' | 'Parent'>('Volunteer');
+  const [hasConsent, setHasConsent] = useState(false); // Consent toggle
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    if (role === 'Parent' && !phone.trim()) {
+      Alert.alert('Error', 'Phone number is required for parents');
+      return;
+    }
+    if (role === 'Parent' && !/^\+91[0-9]{10}$/.test(phone)) {
+      Alert.alert('Error', 'Phone number must be in format +91xxxxxxxxxx');
       return;
     }
     if (password !== confirmPassword) {
@@ -44,15 +54,24 @@ export default function SignupScreen() {
           data: { full_name: name }
         }
       });
-
       if (error) throw error;
       if (!data.user) throw new Error('No user created');
 
       const roleLower = role.toLowerCase() as 'admin' | 'volunteer' | 'parent';
-      await supabase
+      const profileData = {
+        id: data.user.id,
+        role: roleLower,
+        full_name: name,
+        ...(role === 'Parent' && { phone, hasconsent: hasConsent }) // Use lowercase hasconsent
+      };
+
+      console.log('Saving profile to Supabase:', profileData); // Debug log
+
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({ role: roleLower })
-        .eq('id', data.user.id);
+        .upsert(profileData, { onConflict: 'id' }); // ← UPSERT + CONFLICT ON ID
+
+      if (profileError) throw new Error(`Profile save failed: ${profileError.message}`);
 
       const appUser: User = {
         id: data.user.id,
@@ -61,10 +80,10 @@ export default function SignupScreen() {
         role,
         createdAt: new Date().toISOString(),
       };
-
       await login(appUser);
       router.replace('/(tabs)');
     } catch (err: any) {
+      console.error('Signup error:', err);
       Alert.alert('Error', err.message || 'Signup failed');
     } finally {
       setIsLoading(false);
@@ -79,12 +98,12 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Logo />
-          
           <Card style={styles.signupCard}>
             <Text style={styles.welcomeText}>Join Akshar Paaul NGO</Text>
             <Text style={styles.subtitleText}>Create your account</Text>
-            
+
             <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Full Name</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
@@ -94,8 +113,9 @@ export default function SignupScreen() {
                 autoCapitalize="words"
               />
             </View>
-            
+
             <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -107,8 +127,9 @@ export default function SignupScreen() {
                 autoCorrect={false}
               />
             </View>
-            
+
             <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Password</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -118,8 +139,9 @@ export default function SignupScreen() {
                 secureTextEntry
               />
             </View>
-            
+
             <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Confirm Password</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Confirm Password"
@@ -129,6 +151,38 @@ export default function SignupScreen() {
                 secureTextEntry
               />
             </View>
+
+            {role === 'Parent' && (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Phone Number</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="+91xxxxxxxxxx"
+                    placeholderTextColor="#A0AEC0"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Allow SMS Notifications</Text>
+                  <View style={styles.toggleContainer}>
+                    <Text style={styles.toggleLabel}>
+                      {hasConsent ? 'SMS Consent Given' : 'No SMS Consent'}
+                    </Text>
+                    <Switch
+                      value={hasConsent}
+                      onValueChange={setHasConsent}
+                      trackColor={{ false: '#E2E8F0', true: '#667EEA' }}
+                      thumbColor={hasConsent ? '#FFFFFF' : '# socA0AEC0'}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
 
             <View style={styles.inputContainer}>
               <Text style={styles.roleLabel}>Select Your Role</Text>
@@ -153,14 +207,14 @@ export default function SignupScreen() {
                 ))}
               </View>
             </View>
-            
+
             <Button
               title={isLoading ? "Creating Account..." : "Sign Up"}
               onPress={handleSignup}
               disabled={isLoading}
               style={styles.signupButton}
             />
-            
+
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
               <Link href="/(auth)/login" style={styles.loginLink}>
@@ -181,14 +235,15 @@ const styles = StyleSheet.create({
   welcomeText: { fontSize: 28, fontWeight: 'bold', color: '#2D3748', textAlign: 'center', marginBottom: 8 },
   subtitleText: { fontSize: 16, color: '#718096', textAlign: 'center', marginBottom: 32 },
   inputContainer: { marginBottom: 16 },
+  inputLabel: { fontSize: 16, color: '#2D3748', marginBottom: 8, fontWeight: '600' },
   input: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 16, fontSize: 16, backgroundColor: '#F7FAFC' },
   roleLabel: { fontSize: 16, color: '#2D3748', marginBottom: 12, fontWeight: '600' },
-  roleSelector: { 
-    flexDirection: 'row', 
+  roleSelector: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
   },
-  roleButton: { 
+  roleButton: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -216,4 +271,15 @@ const styles = StyleSheet.create({
   loginText: { color: '#718096', fontSize: 16 },
   loginLink: { marginLeft: 4 },
   loginLinkText: { color: '#667EEA', fontSize: 16, fontWeight: '600' },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#F7FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  toggleLabel: { fontSize: 16, color: '#2D3748' },
 });
